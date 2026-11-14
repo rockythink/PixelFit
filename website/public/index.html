@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PixelFit — 让 Mac 外接显示器清晰原生</title>
+    <meta name="description" content="PixelFit 是免费开源的 macOS 菜单栏工具：为外接显示器选对 HiDPI 分辨率，直接调节显示器的亮度、对比度和音量，不支持 DDC 的显示器也能软件调光。">
+    <link rel="canonical" href="https://pixelfit.elazer.wang/">
+    <link rel="alternate" hreflang="zh-CN" href="https://pixelfit.elazer.wang/">
+    <link rel="alternate" hreflang="en" href="https://pixelfit.elazer.wang/?lang=en">
+    <link rel="alternate" hreflang="x-default" href="https://pixelfit.elazer.wang/">
+    <meta name="robots" content="index,follow">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="PixelFit">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:locale:alternate" content="en_US">
+    <meta property="og:title" content="PixelFit — 让外接屏，回到清晰原生">
+    <meta property="og:description" content="免费开源的 macOS 菜单栏工具：HiDPI 分辨率、显示器亮度 / 对比度 / 音量、软件调光。">
+    <meta property="og:url" content="https://pixelfit.elazer.wang/">
+    <meta property="og:image" content="https://pixelfit.elazer.wang/assets/pixelfit-og.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="PixelFit 图标与标语">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="PixelFit — 让外接屏，回到清晰原生">
+    <meta name="twitter:description" content="免费开源的 macOS 菜单栏工具：HiDPI 分辨率、显示器亮度 / 对比度 / 音量、软件调光。">
+    <meta name="twitter:image" content="https://pixelfit.elazer.wang/assets/pixelfit-og.jpg">
+    <meta name="theme-color" content="#0b1226">
+    <link rel="icon" href="/assets/favicon-64.png" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/ibm-plex-mono-latin-500.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://elazer.wang/#organization",
+            "name": "Elazer",
+            "url": "https://elazer.wang",
+            "email": "apps@elazer.wang",
+            "sameAs": ["https://clacklet.elazer.wang", "https://copyla.elazer.wang", "https://indiemaker.cc", "https://ss-data.cc"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://pixelfit.elazer.wang/#website",
+            "name": "PixelFit",
+            "url": "https://pixelfit.elazer.wang/",
+            "inLanguage": ["zh-CN", "en"],
+            "publisher": { "@id": "https://elazer.wang/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://pixelfit.elazer.wang/#app",
+            "name": "PixelFit",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "macOS 14 or later (Apple Silicon)",
+            "softwareVersion": "0.3.1",
+            "license": "https://opensource.org/licenses/MIT",
+            "downloadUrl": "https://github.com/rockythink/PixelFit/releases/download/v0.3.1/PixelFit-v0.3.1-macos-arm64.zip",
+            "codeRepository": "https://github.com/rockythink/PixelFit",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "description": "Native macOS menu bar utility for crisp HiDPI resolutions on external displays and DDC/CI brightness, contrast and volume, with software dimming.",
+            "publisher": { "@id": "https://elazer.wang/#organization" }
+          }
+        ]
+      }
+    </script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main" data-i18n="skip">跳到正文</a>
+    <header class="site-header">
+      <div class="wrap header-row">
+        <a class="brand" href="/" data-lang-link>
+          <img src="/assets/pixelfit-icon.png" alt="" width="34" height="34">
+          <span><strong>PixelFit</strong><small>BY ELAZER</small></span>
+        </a>
+        <nav class="nav" aria-label="主导航" data-i18n-aria="navLabel">
+          <a href="#resolution" data-i18n="navResolution">分辨率</a>
+          <a href="#brightness" data-i18n="navBrightness">亮度</a>
+          <a href="#keys" data-i18n="navKeys">按键</a>
+          <a href="#install" data-i18n="navInstall">安装</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <div class="header-actions">
+          <a class="lang" href="?lang=en" data-lang-toggle hreflang="en">EN</a>
+          <a class="btn btn-small" data-download href="https://github.com/rockythink/PixelFit/releases/download/v0.3.1/PixelFit-v0.3.1-macos-arm64.zip" data-i18n="download">下载</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="pixel-field" aria-hidden="true"></div>
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow mono"><span data-i18n="eyebrowFree">免费开源</span> · macOS 14+ · Apple Silicon</p>
+            <h1 data-i18n="heroTitle">让外接屏，<br>回到清晰原生。</h1>
+            <p class="lede" data-i18n="heroLede">为外接显示器选对 HiDPI 分辨率，直接调亮度、对比度和音量。一个安静的原生菜单栏工具，不改系统、不联网。</p>
+            <div class="cta-row">
+              <a class="btn btn-primary" data-download href="https://github.com/rockythink/PixelFit/releases/download/v0.3.1/PixelFit-v0.3.1-macos-arm64.zip">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span data-i18n="downloadVersion">下载 v0.3.1</span>
+              </a>
+              <a class="btn btn-ghost" href="https://github.com/rockythink/PixelFit" data-i18n="viewSource">查看源码</a>
+            </div>
+            <p class="fine mono" data-i18n="heroFine">Apple 公证 · 2.2 MB · MIT 许可</p>
+          </div>
+
+          <figure class="compare" data-compare>
+            <div class="compare-frame">
+              <canvas class="compare-layer compare-soft" aria-hidden="true"></canvas>
+              <div class="compare-clip"><canvas class="compare-layer compare-sharp" aria-hidden="true"></canvas></div>
+              <span class="compare-tag tag-soft mono" data-i18n="tagSoft">1× 缩放</span>
+              <span class="compare-tag tag-sharp mono">HiDPI 2×</span>
+              <div class="compare-handle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"
+                   aria-label="拖动对比普通缩放与 HiDPI" data-i18n-aria="compareAria"><span></span></div>
+            </div>
+            <figcaption data-i18n="compareCaption">拖动分隔条：同一块 2560 × 1440 屏幕，普通缩放 vs HiDPI。</figcaption>
+          </figure>
+        </div>
+
+        <div class="wrap showcase">
+          <img class="shot-main" src="/assets/app-main-zh.webp" width="1680" height="1356" loading="eager"
+               alt="PixelFit 主窗口：屏幕排列、HiDPI 分辨率、刷新率与显示器控制" data-i18n-alt="shotMainAlt">
+          <img class="shot-menu" src="/assets/app-menu-zh.webp" width="720" height="862" loading="lazy"
+               alt="PixelFit 菜单栏面板：每块屏的分辨率、亮度和音量" data-i18n-alt="shotMenuAlt">
+        </div>
+      </section>
+
+      <section class="band light" id="resolution">
+        <div class="wrap split">
+          <div class="section-copy">
+            <p class="index mono">01 · <span data-i18n="navResolution">分辨率</span></p>
+            <h2 data-i18n="resTitle">先用系统真正支持的，<br>缺了再补。</h2>
+            <p data-i18n="resLede">PixelFit 只列出 macOS 实际提供的 HiDPI 模式，按屏幕比例推荐，并标出每个尺寸是像素匹配、整数缩放还是缩放渲染。</p>
+            <ul class="ticks">
+              <li data-i18n="resPoint1"><strong>15 秒确认。</strong>切换后在目标屏上弹出确认，不点「保留」就自动恢复，选错也不会黑屏到底。</li>
+              <li data-i18n="resPoint2"><strong>分辨率预设。</strong>保存多块屏的组合，⌃⌘1–9 一键切换；按型号与序列号匹配，重新接线后照样认得。</li>
+              <li data-i18n="resPoint3"><strong>启用更多 HiDPI。</strong>系统缺档位时，经你明确授权添加缩放配置，只写 <code>/Library</code>，不碰 <code>/System</code>、不改 EDID、不关 SIP。</li>
+            </ul>
+          </div>
+          <div class="mode-list" aria-hidden="true">
+            <div class="mode-head mono"><span>RV200plus</span><span>3840 × 2160</span></div>
+            <div class="mode-row"><span class="mono">1920 × 1080</span><em class="chip chip-exact" data-i18n="chipExact">像素匹配</em></div>
+            <div class="mode-row is-current"><span class="mono">2560 × 1440</span><em class="chip chip-scaled" data-i18n="chipScaled">缩放渲染</em><b data-i18n="current">当前</b></div>
+            <div class="mode-row"><span class="mono">3008 × 1692</span><em class="chip chip-scaled" data-i18n="chipScaled">缩放渲染</em></div>
+            <div class="mode-row"><span class="mono">1600 × 900</span><em class="chip chip-scaled" data-i18n="chipScaled">缩放渲染</em></div>
+            <div class="confirm mono"><span data-i18n="keepQuestion">保留这个分辨率？</span><span class="count">12s</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band dark" id="brightness">
+        <div class="wrap split reverse">
+          <div class="section-copy">
+            <p class="index mono">02 · <span data-i18n="navBrightness">亮度</span></p>
+            <h2 data-i18n="brTitle">直接调显示器，<br>调不动的也有办法。</h2>
+            <p data-i18n="brLede">通过 DDC/CI 写入显示器自己的亮度、对比度和音量，和按显示器按键一样。每块屏可以选一种亮度方式：</p>
+            <dl class="modes">
+              <div><dt data-i18n="modeHardware">硬件 DDC</dt><dd data-i18n="modeHardwareNote">只调背光。</dd></div>
+              <div><dt data-i18n="modeCombined">硬件 + 软件</dt><dd data-i18n="modeCombinedNote">背光到底后用软件继续压暗，比显示器自身更暗。</dd></div>
+              <div><dt data-i18n="modeSoftware">仅软件</dt><dd data-i18n="modeSoftwareNote">给不支持、或「只记录不执行」DDC 亮度的显示器。</dd></div>
+            </dl>
+            <p class="small" data-i18n="brRobust">系统重置色彩（切换分辨率、唤醒、其他调色程序退出）后自动恢复；与 f.lux 这类程序冲突时改用不影响截图的遮罩。</p>
+          </div>
+
+          <div class="dimmer" data-dimmer>
+            <div class="seg" role="radiogroup" aria-label="亮度方式" data-i18n-aria="modeGroup">
+              <button type="button" role="radio" aria-checked="false" data-mode="hardware" data-i18n="modeHardware">硬件 DDC</button>
+              <button type="button" role="radio" aria-checked="true" data-mode="combined" data-i18n="modeCombined">硬件 + 软件</button>
+              <button type="button" role="radio" aria-checked="false" data-mode="software" data-i18n="modeSoftware">仅软件</button>
+            </div>
+            <div class="dim-screen" aria-hidden="true">
+              <div class="dim-content">
+                <div class="dim-bar"></div>
+                <div class="dim-lines"><i></i><i></i><i></i><i></i></div>
+                <div class="dim-cards"><i></i><i></i><i></i></div>
+              </div>
+              <div class="dim-backlight"></div>
+              <div class="dim-gamma"></div>
+            </div>
+            <label class="dim-slider">
+              <span class="sr" data-i18n="brightness">亮度</span>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.4" fill="currentColor"/><path d="M10 2v2.2M10 15.8V18M2 10h2.2M15.8 10H18M4.3 4.3l1.6 1.6M14.1 14.1l1.6 1.6M4.3 15.7l1.6-1.6M14.1 5.9l1.6-1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <input type="range" min="0" max="100" value="70" data-level aria-label="亮度" data-i18n-aria="brightness">
+              <output class="mono" data-level-out>70%</output>
+            </label>
+            <div class="meters mono">
+              <div><span data-i18n="meterBacklight">背光 DDC</span><b><i data-meter="ddc"></i></b><output data-meter-out="ddc">40%</output></div>
+              <div><span data-i18n="meterSoftware">软件调光</span><b><i data-meter="sw"></i></b><output data-meter-out="sw">100%</output></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band light" id="keys">
+        <div class="wrap split">
+          <div class="section-copy">
+            <p class="index mono">03 · <span data-i18n="navKeys">按键</span></p>
+            <h2 data-i18n="keysTitle">键盘上的亮度键，<br>终于管得到外接屏。</h2>
+            <p data-i18n="keysLede">亮度键调鼠标所在的那块屏；音量键只在声音从显示器输出时接管，其他时候照常交给系统。按住 ⌥⇧ 微调，调节时在那块屏的右上角显示提示。</p>
+            <p class="small" data-i18n="keysNote">需要在「系统设置 › 隐私与安全性 › 辅助功能」中允许 PixelFit。MacBook 内建屏与 Apple 显示器继续使用系统亮度。</p>
+          </div>
+          <div class="keys-demo" data-keys>
+            <div class="hud" aria-live="polite">
+              <div class="hud-top"><span data-i18n="brightness">亮度</span><small>Sculptor</small></div>
+              <div class="hud-bar"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.6" fill="currentColor"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><b><i data-hud-fill></i></b><output class="mono" data-hud-out>75</output></div>
+            </div>
+            <div class="keycaps">
+              <button type="button" class="key" data-step="-1" aria-label="亮度降低" data-i18n-aria="keyDown"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 4v1.4M10 14.6V16M4 10h1.4M14.6 10H16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><small>F1</small></button>
+              <button type="button" class="key" data-step="1" aria-label="亮度提高" data-i18n-aria="keyUp"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.4" fill="currentColor"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><small>F2</small></button>
+              <span class="plus mono">+</span>
+              <button type="button" class="key key-mod" data-fine aria-pressed="false" aria-label="⌥⇧ 微调" data-i18n-aria="keyFine"><span class="mono">⌥⇧</span><small data-i18n="fine">微调</small></button>
+            </div>
+            <p class="small center" data-i18n="keysTry">点按键试试</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="band paper-2 trust">
+        <div class="wrap">
+          <h2 class="center" data-i18n="trustTitle">安静、可验证、能撤销。</h2>
+          <div class="facts">
+            <article><h3 data-i18n="fact1Title">免费开源</h3><p data-i18n="fact1">MIT 许可，源码在 GitHub，构建步骤公开。</p></article>
+            <article><h3 data-i18n="fact2Title">Apple 公证</h3><p data-i18n="fact2">Developer ID 签名、hardened runtime，Gatekeeper 直接放行，无需关闭任何安全设置。</p></article>
+            <article><h3 data-i18n="fact3Title">不联网</h3><p data-i18n="fact3">没有账号、没有统计、没有网络请求，设置只存在你的 Mac 上。</p></article>
+            <article><h3 data-i18n="fact4Title">都能撤销</h3><p data-i18n="fact4">分辨率 15 秒不确认就恢复；软件调光退出即复原；缩放配置可在授权后精确还原安装前的文件。</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="band light" id="install">
+        <div class="wrap split top">
+          <div class="section-copy">
+            <p class="index mono">04 · <span data-i18n="navInstall">安装</span></p>
+            <h2 data-i18n="installTitle">三步装好。</h2>
+            <ol class="steps">
+              <li data-i18n="step1">下载 <code>PixelFit-v0.3.1-macos-arm64.zip</code> 并解压。</li>
+              <li data-i18n="step2">把 PixelFit.app 拖进「应用程序」，打开后出现在菜单栏。</li>
+              <li data-i18n="step3">想用亮度键，在「设置 › 键盘」里点「授予权限」。</li>
+            </ol>
+            <a class="btn btn-primary" data-download href="https://github.com/rockythink/PixelFit/releases/download/v0.3.1/PixelFit-v0.3.1-macos-arm64.zip" data-i18n="downloadVersion">下载 v0.3.1</a>
+            <p class="small"><a href="https://github.com/rockythink/PixelFit/releases/download/v0.3.1/SHA256SUMS.txt" data-i18n="checksum">SHA256 校验值</a> · <a href="https://github.com/rockythink/PixelFit/releases" data-i18n="allReleases">全部版本</a></p>
+          </div>
+          <div class="spec">
+            <h3 data-i18n="reqTitle">系统要求</h3>
+            <p data-i18n="req">Apple Silicon Mac，macOS 14 Sonoma 或更新。DDC 控制需要显示器开启 DDC/CI；部分 HDMI 接口、转接器和扩展坞不转发 DDC。</p>
+            <h3 data-i18n="verifiedTitle">实机验证</h3>
+            <table>
+              <thead><tr><th data-i18n="thDisplay">显示器</th><th data-i18n="thLink">连接</th><th data-i18n="thResult">结果</th></tr></thead>
+              <tbody>
+                <tr><td>Sculptor <span class="mono muted">2560×1600</span></td><td class="mono">DP</td><td data-i18n="tdSculptor">1600×1000 HiDPI · DDC 亮度 / 组合调光</td></tr>
+                <tr><td>RV200plus <span class="mono muted">3840×2160</span></td><td class="mono">DP</td><td data-i18n="tdRV">DDC 读写正常但不执行亮度 → 仅软件</td></tr>
+              </tbody>
+            </table>
+            <p class="small"><a href="https://github.com/rockythink/PixelFit/blob/main/docs/compatibility-matrix.md" data-i18n="matrix">完整兼容性记录与未验证项</a></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="band paper-2" id="faq">
+        <div class="wrap narrow">
+          <h2 data-i18n="faqTitle">常见问题</h2>
+          <details><summary data-i18n="q1">能和 MonitorControl、BetterDisplay、Lunar 一起用吗？</summary><p data-i18n="a1">不建议。它们同样拦截亮度键并读写 DDC，同时运行会互相抢按键、打断通信。PixelFit 检测到它们运行时会提示你先退出。</p></details>
+          <details><summary data-i18n="q2">拖亮度时画面没变化？</summary><p data-i18n="a2">有些显示器只记录、不执行 DDC 亮度。在主窗口把这块屏的「亮度调节」改成「仅软件」即可。</p></details>
+          <details><summary data-i18n="q3">支持 Intel Mac 吗？</summary><p data-i18n="a3">目前只发布并验证 Apple Silicon 版本。</p></details>
+          <details><summary data-i18n="q4">会自动更新吗？</summary><p data-i18n="a4">不会，PixelFit 不联网。新版本发布在 GitHub Releases，也会同步到这个页面。</p></details>
+          <details><summary data-i18n="q5">怎么彻底卸载？</summary><p data-i18n="a5">如果用过「启用更多 HiDPI」，先在主窗口「高级详情」里点「恢复原配置」，再删除 App。删除 App 不会自动撤销系统缩放配置，步骤见 <a href="https://github.com/rockythink/PixelFit#恢复配置与卸载">README</a>。</p></details>
+          <details><summary data-i18n="q6">为什么叫 PixelFit，以前的 HiDPIBuddy 呢？</summary><p data-i18n="a6">就是同一个工具改名而来。为兼容旧预设和恢复记录，Bundle ID 与数据目录仍沿用 HiDPIBuddy。</p></details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-grid">
+        <div class="brand">
+          <img src="/assets/pixelfit-icon.png" alt="" width="34" height="34">
+          <span><strong>PixelFit</strong><small>BY ELAZER</small></span>
+        </div>
+        <p data-i18n="footerLine">把外接屏当成一等公民。</p>
+        <nav aria-label="页脚导航" data-i18n-aria="footerNav">
+          <a href="https://github.com/rockythink/PixelFit">GitHub</a>
+          <a href="https://github.com/rockythink/PixelFit/issues" data-i18n="feedback">反馈问题</a>
+          <a href="mailto:apps@elazer.wang">apps@elazer.wang</a>
+        </nav>
+        <nav class="other-works" aria-labelledby="other-works-title">
+          <p id="other-works-title" data-i18n="otherWorks">石头的其他作品</p>
+          <a href="https://elazer.wang">elazer.wang</a>
+          <a href="https://clacklet.elazer.wang">clacklet.elazer.wang</a>
+          <a href="https://copyla.elazer.wang">copyla.elazer.wang</a>
+          <a href="https://indiemaker.cc">indiemaker.cc</a>
+          <a href="https://ss-data.cc">ss-data.cc</a>
+        </nav>
+        <small>© 2026 Elazer · MIT License</small>
+      </div>
+    </footer>
+  </body>
+</html>

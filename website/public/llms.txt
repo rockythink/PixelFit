@@ -1,0 +1,17 @@
+# PixelFit
+
+> PixelFit (中文：让外接显示器清晰原生) is a free, open-source (MIT) native macOS menu bar utility for external displays: it picks crisp HiDPI resolutions and adjusts monitor brightness, contrast and volume over DDC/CI, with software dimming for displays that need it. It runs on Apple Silicon Macs with macOS 14 or later. Current version: 0.3.1.
+
+- Resolution: lists the HiDPI modes macOS actually provides, recommends sizes matching each screen's aspect ratio, labels them pixel-matched / integer-scaled / scaled, confirms every switch on the target display and reverts after 15 seconds unless kept. Resolution presets (⌃⌘1–9). Optional "More HiDPI" scaling configuration written only to /Library with explicit administrator approval; never /System, EDID or SIP.
+- Display controls: DDC/CI brightness, contrast and volume. Per-display brightness modes: Hardware (DDC), Hardware + Software (dims below the monitor's minimum) and Software Only (gamma, 15% floor) for monitors that lack or ignore DDC brightness. Built-in and Apple displays use native system brightness.
+- Keys: brightness keys adjust the display under the pointer; volume keys apply only while audio plays through a display; ⌥⇧ for fine steps; on-screen HUD. Requires Accessibility permission.
+- Privacy: no account, analytics or network requests; no automatic updates.
+- Conflicts: do not run alongside MonitorControl, BetterDisplay or Lunar; PixelFit warns when they are running.
+
+## Links
+
+- [Homepage (Chinese)](https://pixelfit.elazer.wang/)
+- [Homepage (English)](https://pixelfit.elazer.wang/?lang=en)
+- [Download v0.3.1 (Apple Silicon, notarized)](https://github.com/rockythink/PixelFit/releases/download/v0.3.1/PixelFit-v0.3.1-macos-arm64.zip)
+- [Source code](https://github.com/rockythink/PixelFit)
+- [Compatibility record](https://github.com/rockythink/PixelFit/blob/main/docs/compatibility-matrix.md)

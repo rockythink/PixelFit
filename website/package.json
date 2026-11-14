@@ -1,0 +1,13 @@
+{
+  "name": "pixelfit-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "dev": "wrangler dev",
+    "deploy": "npm run check && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.124.0"
+  }
+}

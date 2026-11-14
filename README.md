@@ -6,7 +6,7 @@
 
 PixelFit is a macOS utility for choosing HiDPI modes and adjusting external monitor brightness, contrast and volume over DDC/CI. Native modes come first; physical scaling configuration requires explicit authorization, and virtual mirroring is an optional experiment. The release binary targets Apple Silicon on macOS 14 or later.
 
-[下载与发行说明](https://github.com/rockythink/PixelFit/releases) · [兼容性记录](docs/compatibility-matrix.md) · [API 与实现参考](docs/display-protocol-references.md) · [反馈问题](https://github.com/rockythink/PixelFit/issues)
+[官网](https://pixelfit.elazer.wang) · [下载与发行说明](https://github.com/rockythink/PixelFit/releases) · [兼容性记录](docs/compatibility-matrix.md) · [API 与实现参考](docs/display-protocol-references.md) · [反馈问题](https://github.com/rockythink/PixelFit/issues)
 
 ## 下载与安装
 

@@ -56,6 +56,10 @@ swift run PixelFit diagnose --all --json      # 只读 CLI：help / list / statu
 - 强调色用 `Color.accentColor`（`AppTheme.accent`）；不要用 `Color(nsColor: .controlAccentColor)` 做 `.tint`，实测会把 Menu 箭头渲染成红色。显示整数尺寸的 `Text` 用 `verbatim` 或先转成 String，否则会出现千位分隔符（「2,560」）。
 - `Support/Localization.swift`：`L10n.t(key, language)` 查手写的 `zh` / `en` 字典（缺失时回退 en，再回退 key 本身）。新增 UI 文案要同时加两个字典。View 外（service）没有 language 参数时用 `L10n.t(key)`，它读 `DisplayStore` 同步的 `L10n.current`；service 错误统一抛 `LocalizedServiceError(key:arguments:detail:)`，文案在展示时才按当前语言生成，`detail` 放不翻译的原始诊断输出。
 
+## 官网
+
+`website/`：https://pixelfit.elazer.wang ，原生 HTML/CSS/JS（不引入框架），Cloudflare Workers 静态资源托管（`wrangler.jsonc`，无 Worker 脚本）。中文写在 `public/index.html`，英文在 `public/app.js` 的 `EN` 表（`?lang=en`）。`public/_headers` 的 CSP 禁止内联脚本和内联样式。下载链接指向 GitHub Release，站点不托管安装包。发版后更新页面、`app.js`、`llms.txt` 里的版本号，`npm run check`（校验英文覆盖、版本号与 `APP_VERSION` 一致、无内联代码），再 `npm run deploy`（部署是对外动作，需用户授权）。
+
 ## 不能随意改的约束
 
 - **兼容性身份**：Bundle ID `cc.ss-data.hidpibuddy`、`HiDPIBuddy` 用户数据目录、管理员备份目录均为改名前遗留，刻意保留以兼容旧预设和恢复记录，不要改成 PixelFit。

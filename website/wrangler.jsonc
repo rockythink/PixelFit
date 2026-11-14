@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Static site only: Workers static assets, no Worker script.
+  "name": "pixelfit-website",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    { "pattern": "pixelfit.elazer.wang", "custom_domain": true }
+  ]
+}
