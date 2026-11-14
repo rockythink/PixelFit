@@ -14,7 +14,7 @@ swift test                                    # 全部测试（Swift Testing，�
 swift test --filter PhysicalHiDPIConfigurationTests          # 单个 Suite
 swift test --filter "PhysicalHiDPIConfigurationTests/preservesFieldsAndExistingScaleEntries"  # 单个测试
 
-./script/build_and_run.sh --build             # 只打包 dist/PixelFit.app，不杀/不启动现有 App
+./script/build_and_run.sh --build             # 只打包 dist/PixelFit.app，不杀/不启动现有 App（开发构建也用 Developer ID 签名，无时间戳）
 ./script/build_and_run.sh                     # pkill 旧进程 → 打包 → 打开
 ./script/build_and_run.sh --logs              # 打开并 log stream（--telemetry 按 subsystem 过滤）
 ./script/build_and_run.sh --release           # 需 SIGN_IDENTITY="Developer ID Application: ..."；只签名不公证
@@ -47,7 +47,7 @@ swift run PixelFit diagnose --all --json      # 只读 CLI：help / list / statu
   - `PhysicalHiDPIService` 负责安装 / 恢复 `/Library/Displays/Contents/Resources/Overrides/DisplayVendorID-*/DisplayProductID-*`：通过 `osascript ... with administrator privileges` 运行内嵌在 Swift 里的 `/usr/bin/ruby` 事务脚本，备份与 receipt（含 SHA256 摘要）存于 `/Library/Application Support/HiDPIBuddy`。状态由摘要比对得出 installed / restored / conflict；摘要不符时拒绝覆盖。测试用 `init(testPaths:)` 指向沙盒目录、`authorize: false`，绝不触发管理员授权。
   - `VirtualHiDPIService` 启动 helper 子进程，通过 stdout JSON lines 接收 `ready` / `error` / `stopped` 事件，关闭 stdin（EOF）即通知 helper 停止并恢复原模式。
   - `DDCService`（Apple Silicon，`IOAVService` 私有 API）：按 IORegistry 顺序把每个外接 framebuffer（AppleCLCD2 / IOMobileFramebufferShim）与其后的 `DCPAVServiceProxy` 配对，再用 EDID UUID 字段 + 产品名 + 序列号给 `DisplayDevice` 打分匹配（参照 MonitorControl Arm64DDC）。所有 I2C 都在一条串行队列上；`DDCCodec` 是纯函数，测试在 `Tests/DDCCodecTests.swift`。`DisplayStore.hardware` 只在物理屏集合变化时重新探测（模式切换不触发），菜单栏打开时节流重读；滑块写入按（屏幕, 控制项）合并，只发最新值。
-  - `MediaKeyService`：`CGEventTap` 拦截 NSSystemDefined 媒体键，需辅助功能权限（无权限时不建 tap，按键保持系统行为）；按下被消费时对应的抬起也吞掉。`DisplayStore.handleMediaKey` 决定是否接管：亮度键 → 鼠标所在、由 PixelFit 控制亮度的屏；音量 / 静音 → `AudioOutputService` 判定默认输出是该屏的 DP/HDMI 音频。反馈浮层在 `Support/ControlHUDPanel.swift`。注意 ad-hoc 签名的开发构建每次重签后 TCC 授权可能失效。
+  - `MediaKeyService`：`CGEventTap` 拦截 NSSystemDefined 媒体键，需辅助功能权限（无权限时不建 tap，按键保持系统行为）；按下被消费时对应的抬起也吞掉。`DisplayStore.handleMediaKey` 决定是否接管：亮度键 → 鼠标所在、由 PixelFit 控制亮度的屏；音量 / 静音 → `AudioOutputService` 判定默认输出是该屏的 DP/HDMI 音频。反馈浮层在 `Support/ControlHUDPanel.swift`。开发构建与正式版用同一个 Developer ID 签名（`build_and_run.sh` 自动选唯一的 Developer ID Application 证书，`DEV_SIGN_IDENTITY` 可覆盖），designated requirement 一致，辅助功能授权跨重新打包、跨开发版 / 正式版保留；不要改回取钥匙串「第一个」证书（曾误用 CleanRec 的本地自签证书导致授权失效）。
   - 亮度引擎在 `Stores/DisplayStore+Brightness.swift`：每屏 `BrightnessMode`（hardware / combined / software，nil = 自动：有 DDC 亮度 → combined，否则 software），`BrightnessSplit` 纯函数负责「单一亮度值 ↔ DDC + 软件」换算（combined 分界 0.5）。内建屏和 Apple 显示器走 `AppleBrightnessService`（DisplayServices，dlsym），亮度键交还系统。睡眠时暂停 DDC，唤醒 2 秒后重新匹配并重读；模式切换后只防抖重新 attach，不重读。
   - `DimmingService`（参照 MonitorControl）：gamma 缩放为主（只在本次运行首次 capture 前 `CGDisplayRestoreColorSyncSettings` 一次，之后绝不重新 capture，避免把自己调暗的表当原始表），每次写 gamma 后用 1×1 窗口迫使 WindowServer 重绘；有屏处于 gamma 调暗时每 1.5 秒巡检：被重置成原始曲线 → 直接重放，外来曲线累计 3 次 → 该屏本次运行改用 `CGShieldingWindowLevel` 遮罩窗口（`sharingType = .none`，截图与窗口列表里看不到）。注意：任何改过 gamma 的进程退出时系统都会恢复 ColorSync，包括 PixelFit 自己。日志 category 为 `dimming` / `media-keys`。
   - `PersistenceService` 读写 `~/Library/Application Support/HiDPIBuddy/state.json`（语言、预设、Dock 图标、媒体键开关、每屏 `brightness` 设置；旧版 `softwareDimming` 字段只读迁移）。

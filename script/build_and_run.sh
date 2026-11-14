@@ -111,12 +111,27 @@ if [[ "$MODE" == "--release" ]]; then
     --identifier "$BUNDLE_ID" "$APP_BUNDLE"
   codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 else
-  SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F\" '/"/ { print $2; exit }')"
-  if [[ -n "${SIGN_IDENTITY:-}" ]]; then
-    codesign --force --deep --sign "$SIGN_IDENTITY" --identifier "$BUNDLE_ID" "$APP_BUNDLE"
-  else
-    codesign --force --deep --sign - --identifier "$BUNDLE_ID" "$APP_BUNDLE"
+  # Development builds use the same Developer ID as releases, so their designated requirement
+  # (bundle ID + team + Apple anchor) matches: Accessibility and other TCC grants survive
+  # rebuilds and carry over between dev and release builds. Override with DEV_SIGN_IDENTITY
+  # (a full identity name, or "-" for ad-hoc). No timestamp, so builds stay fast and offline.
+  DEV_IDENTITY="${DEV_SIGN_IDENTITY:-}"
+  if [[ -z "$DEV_IDENTITY" ]]; then
+    DEVELOPER_IDS="$(security find-identity -v -p codesigning 2>/dev/null | awk -F\" '/"Developer ID Application: / { print $2 }' | sort -u)"
+    if [[ -n "$DEVELOPER_IDS" && "$(printf '%s\n' "$DEVELOPER_IDS" | wc -l | tr -d ' ')" == "1" ]]; then
+      DEV_IDENTITY="$DEVELOPER_IDS"
+    else
+      DEV_IDENTITY="-"
+      echo "warning: no unique Developer ID Application identity; signing ad-hoc. Accessibility permission will not persist across rebuilds. Set DEV_SIGN_IDENTITY to choose one." >&2
+    fi
   fi
+  # lldb cannot attach to a hardened-runtime binary without get-task-allow.
+  RUNTIME_OPTIONS=(--options runtime)
+  [[ "$MODE" == "--debug" || "$MODE" == "debug" ]] && RUNTIME_OPTIONS=()
+  codesign --force ${RUNTIME_OPTIONS[@]+"${RUNTIME_OPTIONS[@]}"} --timestamp=none --sign "$DEV_IDENTITY" \
+    --identifier "$BUNDLE_ID.virtual-display-helper" "$APP_MACOS/$HELPER_NAME"
+  codesign --force ${RUNTIME_OPTIONS[@]+"${RUNTIME_OPTIONS[@]}"} --timestamp=none --sign "$DEV_IDENTITY" \
+    --identifier "$BUNDLE_ID" "$APP_BUNDLE"
 fi
 
 open_app() {
