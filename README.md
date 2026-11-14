@@ -10,11 +10,11 @@ PixelFit is a macOS utility for choosing HiDPI modes and adjusting external moni
 
 ## 下载与安装
 
-1. 打开 [v0.3.0 发行页](https://github.com/rockythink/PixelFit/releases/tag/v0.3.0)，下载该页实际发布的 `PixelFit-v0.3.0-macos-arm64.zip`，不要选择 GitHub 自动生成的源码 ZIP。
+1. 打开 [v0.3.1 发行页](https://github.com/rockythink/PixelFit/releases/tag/v0.3.1)，下载该页实际发布的 `PixelFit-v0.3.1-macos-arm64.zip`，不要选择 GitHub 自动生成的源码 ZIP。
 2. 解压，将 `PixelFit.app` 拖入「应用程序」。需要 **macOS 14 或更新版本、Apple Silicon（arm64）**；当前不提供已验证的 Intel 安装包。
 3. 若使用过旧版 HiDPIBuddy / PixelFit，先正常退出旧版本，再打开新 App。通过菜单栏图标或主窗口选择屏幕。
 
-v0.3.0 的发行附件已使用 Developer ID Application 签名，通过 Apple 公证，并在 App 中附加公证票据；本地 Gatekeeper 验证为 `accepted / Notarized Developer ID`。发行页同时提供 `SHA256SUMS.txt`。源码 ZIP 和自行构建的 App 不等于已公证发行包；若 macOS 阻止打开，请先核对来源、校验值与发行说明，不要关闭 Gatekeeper 或 SIP。
+v0.3.1 的发行附件已使用 Developer ID Application 签名，通过 Apple 公证，并在 App 中附加公证票据；本地 Gatekeeper 验证为 `accepted / Notarized Developer ID`。发行页同时提供 `SHA256SUMS.txt`。源码 ZIP 和自行构建的 App 不等于已公证发行包；若 macOS 阻止打开，请先核对来源、校验值与发行说明，不要关闭 Gatekeeper 或 SIP。
 
 ## 日常使用
 
