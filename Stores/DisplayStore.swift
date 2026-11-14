@@ -2,6 +2,7 @@ import AppKit
 import CoreGraphics
 import Foundation
 import Observation
+import ServiceManagement
 
 @Observable
 @MainActor
@@ -9,16 +10,40 @@ final class DisplayStore {
     var displays: [DisplayDevice] = []
     var selectedDisplayID: UInt32?
     var language: AppLanguage = .system
-    var statusMessage = L10n.t("status.ready", .system)
+    /// Last outcome worth reporting; nil until something happens.
+    var statusMessage: String?
     var lastError: String?
     var pendingModeChange: PendingDisplayModeChange?
     var presets: [DisplayPreset] = []
+    var showsDockIcon = true
+    var launchesAtLogin = false
+    var loginItemRequiresApproval = false
+    var loginItemError: String?
     var virtualSession: VirtualHiDPISession?
     var pendingVirtualSeconds: Int?
     var isPreparingVirtualHiDPI = false
     var hiDPIChoices: [UInt32: HiDPIResolutionChoices] = [:]
     var physicalConfigurationRequest: PhysicalHiDPIRequest?
     var isChangingPhysicalConfiguration = false
+    /// DDC/CI state for external displays, keyed by display ID. Missing means not probed yet.
+    var hardware: [UInt32: DisplayHardwareState] = [:]
+    /// Brightness / volume keys drive DDC displays. Needs Accessibility permission to take effect.
+    var mediaKeysEnabled = true
+    var accessibilityTrusted = false
+    /// Running apps that also intercept brightness / volume keys and talk DDC to the same monitors.
+    var conflictingApps: [String] = []
+    /// Per-display brightness mode and software level, keyed by `settingsKey` (persisted).
+    var brightnessSettings: [String: DisplayBrightnessSetting] = [:]
+    /// Native brightness of built-in panels and Apple displays, keyed by display ID.
+    var appleBrightness: [UInt32: Double] = [:]
+    /// True from system sleep until the DDC link is back after wake.
+    var ddcPaused = false
+    let dimming = DimmingService()
+    @ObservationIgnored private var persistTask: Task<Void, Never>?
+    @ObservationIgnored var workspaceObservers: [NSObjectProtocol] = []
+    @ObservationIgnored var ddcReattachTask: Task<Void, Never>?
+    @ObservationIgnored var wakeTask: Task<Void, Never>?
+    @ObservationIgnored private var runningAppsObservation: NSKeyValueObservation?
     private var physicalConfigurations: [DisplayOverrideKey: PhysicalHiDPIStatus] = [:]
     private var preparingDisplayID: UInt32?
 
@@ -27,6 +52,17 @@ final class DisplayStore {
     private let persistence = PersistenceService()
     private let virtualHiDPI = VirtualHiDPIService()
     private let physicalHiDPI = PhysicalHiDPIService()
+    private let confirmationPanel = ResolutionConfirmationPanel()
+    let ddc = DDCService()
+    let mediaKeys = MediaKeyService()
+    let controlHUD = ControlHUDPanel()
+    @ObservationIgnored var trustPollTimer: Timer?
+    @ObservationIgnored var volumesBeforeMute: [UInt32: Double] = [:]
+    @ObservationIgnored var hardwareProbeTask: Task<Void, Never>?
+    @ObservationIgnored var hardwareIdentities: [UInt32: String] = [:]
+    @ObservationIgnored var lastHardwareReread = Date.distantPast
+    @ObservationIgnored var queuedHardwareWrites: [HardwareWriteKey: UInt16] = [:]
+    @ObservationIgnored var hardwareWritesInFlight: Set<HardwareWriteKey> = []
     @ObservationIgnored private var rollbackTimer: Timer?
     @ObservationIgnored private var virtualPreparationTask: Task<Void, Never>?
     @ObservationIgnored private var virtualSessionTimer: Timer?
@@ -37,14 +73,27 @@ final class DisplayStore {
     init() {
         let snapshot = persistence.load()
         language = snapshot.language
+        L10n.current = language
         presets = snapshot.presets
+        showsDockIcon = snapshot.showsDockIcon
+        mediaKeysEnabled = snapshot.mediaKeysEnabled
+        brightnessSettings = snapshot.brightness
+        refreshLoginItemStatus()
         refreshDisplays()
+        updateMediaKeyMonitoring()
+        // didLaunch/didTerminate notifications skip menu bar agents (LSUIElement) such as
+        // MonitorControl, so watch the running-application list itself.
+        runningAppsObservation = NSWorkspace.shared.observe(\.runningApplications, options: [.initial]) { [weak self] _, _ in
+            Task { @MainActor in self?.refreshConflictingApps() }
+        }
+        installPowerObservers()
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.rollbackDisplayModeChange()
                 self?.stopVirtualHiDPI()
+                self?.dimming.restoreAll()
             }
         }
         screenParametersObserver = NotificationCenter.default.addObserver(
@@ -86,6 +135,10 @@ final class DisplayStore {
         displays = discovered
         hiDPIChoices = choices
         if !displays.contains(where: { $0.id == selectedDisplayID }) { selectedDisplayID = displays.first?.id }
+        refreshHardwareControls()
+        // macOS resets gamma on reconfiguration; screens may also have moved for shades.
+        applySoftwareBrightness()
+        dimming.reapplyAll()
     }
 
     func applyHiDPIResolution(_ target: DisplayResolutionTarget, for displayID: UInt32) {
@@ -236,8 +289,37 @@ final class DisplayStore {
 
     func setLanguage(_ newLanguage: AppLanguage) {
         language = newLanguage
+        L10n.current = newLanguage
         refreshDisplays()
         persist()
+    }
+
+    func setShowsDockIcon(_ shows: Bool) {
+        showsDockIcon = shows
+        Self.applyActivationPolicy(showsDockIcon: shows)
+        persist()
+    }
+
+    /// Without a Dock icon the app stays reachable from its menu bar extra.
+    static func applyActivationPolicy(showsDockIcon: Bool) {
+        NSApp.setActivationPolicy(showsDockIcon ? .regular : .accessory)
+    }
+
+    /// The system login item list is the source of truth, so the result is read back rather than assumed.
+    func setLaunchesAtLogin(_ enabled: Bool) {
+        do {
+            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            loginItemError = nil
+        } catch {
+            loginItemError = error.localizedDescription
+        }
+        refreshLoginItemStatus()
+    }
+
+    func refreshLoginItemStatus() {
+        let status = SMAppService.mainApp.status
+        launchesAtLogin = status == .enabled || status == .requiresApproval
+        loginItemRequiresApproval = status == .requiresApproval
     }
 
     func savePreset(named name: String) {
@@ -245,7 +327,7 @@ final class DisplayStore {
         guard !trimmed.isEmpty, canBeginNativeChange, virtualSession == nil else { return }
         let modes = displays.compactMap { display -> DisplayPresetMode? in
             guard let mode = display.currentMode else { return nil }
-            return DisplayPresetMode(displayID: display.id, displayName: display.shortName(language: language), mode: mode)
+            return DisplayPresetMode(display: display, displayName: display.shortName(language: language), mode: mode)
         }
         guard !modes.isEmpty else { return }
         presets.append(DisplayPreset(name: trimmed, displayModes: modes))
@@ -260,24 +342,17 @@ final class DisplayStore {
 
     func applyPreset(_ preset: DisplayPreset) {
         guard canBeginNativeChange else { return }
-        var targets: [(DisplayDevice, DisplayMode)] = []
-        for saved in preset.displayModes {
-            guard let display = displays.first(where: { $0.id == saved.displayID }),
-                  let mode = display.availableModes.first(where: {
-                      $0.width == saved.mode.width && $0.height == saved.mode.height &&
-                      $0.pixelWidth == saved.mode.pixelWidth && $0.pixelHeight == saved.mode.pixelHeight &&
-                      Int($0.refreshRate.rounded()) == Int(saved.mode.refreshRate.rounded()) &&
-                      $0.isHiDPI == saved.mode.isHiDPI
-                  }) else {
-                lastError = L10n.t("error.modeUnavailable", language)
-                return
-            }
-            targets.append((display, mode))
+        switch preset.resolve(in: displays) {
+        case .ready(let targets):
+            beginNativeChange(targets.map { ($0.display, $0.mode) })
+        case .displayMissing(let name):
+            lastError = String(format: L10n.t("preset.displayMissing", language), name)
+        case .modeUnavailable(let name, let mode):
+            lastError = String(format: L10n.t("preset.modeUnavailable", language), name, mode)
         }
-        beginNativeChange(targets)
     }
 
-    private var canBeginNativeChange: Bool {
+    var canBeginNativeChange: Bool {
         !isPreparingVirtualHiDPI && pendingVirtualSeconds == nil && pendingModeChange == nil &&
         !isChangingPhysicalConfiguration && physicalConfigurationRequest == nil
     }
@@ -322,6 +397,7 @@ final class DisplayStore {
         }
         statusMessage = L10n.t("status.updated", language)
         refreshDisplays()
+        confirmationPanel.show(store: self, on: [first.display.id])
     }
 
     func confirmDisplayModeChange() {
@@ -363,6 +439,7 @@ final class DisplayStore {
     }
 
     private func clearNativeChange() {
+        confirmationPanel.hide()
         rollbackTimer?.invalidate()
         rollbackTimer = nil
         pendingNativeChanges.removeAll()
@@ -395,6 +472,9 @@ final class DisplayStore {
                 self.statusMessage = L10n.t("ui.confirmationNote", self.language)
                 self.startVirtualSessionTimer()
                 self.refreshDisplays()
+                if let session = self.virtualSession {
+                    self.confirmationPanel.show(store: self, on: [session.displayID, session.virtualDisplayID])
+                }
             } catch {
                 let startError = error
                 do {
@@ -413,6 +493,7 @@ final class DisplayStore {
     func confirmVirtualHiDPI() {
         guard virtualSession != nil, virtualHiDPI.isRunning, pendingVirtualSeconds != nil else { return }
         pendingVirtualSeconds = nil
+        confirmationPanel.hide()
         statusMessage = L10n.t("ui.kept", language)
     }
 
@@ -422,6 +503,7 @@ final class DisplayStore {
         virtualSessionTimer?.invalidate()
         virtualSessionTimer = nil
         pendingVirtualSeconds = nil
+        confirmationPanel.hide()
         do {
             try virtualHiDPI.stop()
             lastError = nil
@@ -456,7 +538,20 @@ final class DisplayStore {
         }
     }
 
-    private func persist() {
-        persistence.save(PersistentSnapshot(language: language, presets: presets))
+    func persist() {
+        persistTask?.cancel()
+        persistTask = nil
+        persistence.save(PersistentSnapshot(language: language, presets: presets, showsDockIcon: showsDockIcon,
+                                            mediaKeysEnabled: mediaKeysEnabled, brightness: brightnessSettings))
+    }
+
+    /// Slider drags change the level many times a second; write the state file once they settle.
+    func persistSoon() {
+        persistTask?.cancel()
+        persistTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            self?.persist()
+        }
     }
 }

@@ -1,7 +1,8 @@
 # PixelFit Compatibility Matrix
 
-Only resolution-related behavior is in scope. Connection paths not observed
-in the current session are marked unknown rather than inferred.
+Resolution behavior and, from 0.3.0, DDC/CI and software brightness are in
+scope. Connection paths not observed in the current session are marked unknown
+rather than inferred.
 
 | Date | Mac / macOS | Display | Connection | Mode Enumeration | Native HiDPI | Virtual HiDPI | Recovery | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -49,6 +50,21 @@ strict signature verification passed; Gatekeeper reported `accepted` with
 source `Notarized Developer ID`. The distributable ZIP was recreated after
 stapling, with a separate SHA-256 checksum file.
 
+## Display Controls (0.3.0)
+
+| Date | Mac / macOS | Display | Connection | DDC read | DDC write takes effect | Brightness mode | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-15 | Apple Silicon (M4) / 27.0.1 (26A434) | Sculptor, 2560×1600, vendor 0x6474 product 0xD01F | DP → DP (IORegistry) | brightness, contrast, volume (VCP 2.2) | yes: brightness 100→94→100 by keys, readback matched | Hardware + Software (automatic) | Combined mode crossed the switching point: DDC 88→0→100, gamma 1→0.7875→1. |
+| 2026-11-15 | Apple Silicon (M4) / 27.0.1 (26A434) | RV200plus, 3840×2160, vendor 0x4ACD product 0x2740 | DP → DP (IORegistry) | brightness, contrast, volume (VCP 2.2) | no: the monitor stores and reports VCP 0x10 but the picture does not change (confirmed with MonitorControl quit) | Software Only (manual) | Gamma dimming verified by table readback (0.7875 / 0.8406); DDC untouched. |
+
+Media keys were exercised with synthetic NSSystemDefined events and the
+user's real keyboard: brightness keys followed the pointer's display and showed
+the HUD; volume keys were passed back to the system while audio played over
+Bluetooth. Gamma recovery was exercised by another process resetting the table
+(re-applied within one 1.5 s watchdog tick) and by a process continuously
+writing a foreign curve (switched to the overlay after three detections).
+Normal quit and SIGTERM both left the original gamma in place.
+
 ## Not Verified
 
 - Other devices/OS versions and reboot activation of the8-byte format. Local Sculptor1600×1000 full coverage/text proportions,120Hz and no-mirror output passed; initial16-byte failure and native-dimensions-only uncertainty remain historical results, not the current path.
@@ -56,3 +72,7 @@ stapling, with a separate SHA-256 checksum file.
 - Forced App termination or display unplugging while mirrored.
 - Other macOS versions / Intel Macs, built-in or rotated displays.
 - Third-party virtual displays, AirPlay, Sidecar and DisplayLink.
+- DDC over HDMI, docks and adapters; Intel Macs.
+- Display Controls on built-in panels and Apple displays (DisplayServices path).
+- ⌥⇧ fine brightness steps with a physical keyboard; volume / mute keys with
+  display audio; real sleep/wake and mode-switch gamma re-application.

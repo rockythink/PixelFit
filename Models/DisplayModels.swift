@@ -91,6 +91,21 @@ struct DisplayDevice: Identifiable, Codable, Hashable {
         currentMode?.isHiDPI == true
     }
 
+    /// HiDPI modes at the current size and backing resolution, one per refresh rate, fastest first.
+    var currentHiDPIRefreshModes: [DisplayMode] {
+        guard let current = currentMode, current.isHiDPI else { return [] }
+        var best = [Int: DisplayMode]()
+        for mode in availableModes where mode.isHiDPI && mode.width == current.width && mode.height == current.height &&
+            mode.pixelWidth == current.pixelWidth && mode.pixelHeight == current.pixelHeight {
+            let rate = Int(mode.refreshRate.rounded())
+            guard rate > 0 else { continue }
+            if let existing = best[rate],
+               existing.systemSettingsScore(currentMode: current) >= mode.systemSettingsScore(currentMode: current) { continue }
+            best[rate] = mode
+        }
+        return best.values.sorted { $0.refreshRate > $1.refreshRate }
+    }
+
     var recommendedHiDPIModes: [DisplayMode] {
         guard let nativeMode else { return [] }
         let targets = preferredHiDPITargets
@@ -203,7 +218,7 @@ struct DisplayResolutionTarget: Codable, Hashable, Identifiable {
     var height: Int
 
     var resolutionLabel: String {
-        "\(width) x \(height)"
+        "\(width) × \(height)"
     }
 
     var resolutionWithAspectLabel: String {
@@ -252,7 +267,7 @@ struct DisplayMetadata: Codable, Hashable {
 
     var physicalSizeText: String {
         guard physicalWidthMM > 0, physicalHeightMM > 0 else { return "-" }
-        return "\(Int(physicalWidthMM.rounded())) x \(Int(physicalHeightMM.rounded())) mm"
+        return "\(Int(physicalWidthMM.rounded())) × \(Int(physicalHeightMM.rounded())) mm"
     }
 
     var diagonalInches: Double? {
@@ -351,6 +366,61 @@ struct DisplayPresetMode: Codable, Hashable, Identifiable {
     var displayID: UInt32
     var displayName: String
     var mode: DisplayMode
+    // Absent in presets saved before identity matching; those fall back to displayID.
+    var vendorID: UInt32?
+    var productID: UInt32?
+    var serialNumber: UInt32?
+}
+
+extension DisplayPresetMode {
+    init(display: DisplayDevice, displayName: String, mode: DisplayMode) {
+        displayID = display.id
+        self.displayName = displayName
+        self.mode = mode
+        vendorID = display.vendorID
+        productID = display.modelID
+        serialNumber = display.serialNumber
+    }
+
+    /// CGDirectDisplayID can change after reconnecting or switching ports, so match the display itself.
+    func matchingDisplay(in displays: [DisplayDevice]) -> DisplayDevice? {
+        guard let vendorID, let productID else { return displays.first { $0.id == displayID } }
+        let sameModel = displays.filter { $0.vendorID == vendorID && $0.modelID == productID }
+        if let serialNumber, serialNumber != 0 {
+            return sameModel.first { $0.serialNumber == serialNumber }
+        }
+        // Without a serial number, identical models can only be told apart by the saved ID.
+        return sameModel.count == 1 ? sameModel[0] : sameModel.first { $0.id == displayID }
+    }
+}
+
+extension DisplayPreset {
+    enum Resolution {
+        case ready([(display: DisplayDevice, mode: DisplayMode)])
+        case displayMissing(name: String)
+        case modeUnavailable(name: String, mode: String)
+    }
+
+    /// All-or-nothing: a preset never applies to only some of its displays.
+    func resolve(in displays: [DisplayDevice]) -> Resolution {
+        var targets: [(display: DisplayDevice, mode: DisplayMode)] = []
+        for saved in displayModes {
+            guard let display = saved.matchingDisplay(in: displays),
+                  !targets.contains(where: { $0.display.id == display.id }) else {
+                return .displayMissing(name: saved.displayName)
+            }
+            guard let mode = display.availableModes.first(where: {
+                $0.width == saved.mode.width && $0.height == saved.mode.height &&
+                $0.pixelWidth == saved.mode.pixelWidth && $0.pixelHeight == saved.mode.pixelHeight &&
+                Int($0.refreshRate.rounded()) == Int(saved.mode.refreshRate.rounded()) &&
+                $0.isHiDPI == saved.mode.isHiDPI
+            }) else {
+                return .modeUnavailable(name: saved.displayName, mode: saved.mode.label)
+            }
+            targets.append((display, mode))
+        }
+        return .ready(targets)
+    }
 }
 
 struct DisplayMode: Codable, Hashable, Identifiable {
@@ -406,15 +476,15 @@ struct DisplayMode: Codable, Hashable, Identifiable {
 
     var label: String {
         let scale = isHiDPI ? "HiDPI" : "1x"
-        return "\(width) x \(height) @ \(Int(refreshRate.rounded()))Hz \(scale)"
+        return "\(width) × \(height) @ \(Int(refreshRate.rounded()))Hz \(scale)"
     }
 
     var detailLabel: String {
-        "\(label) · framebuffer \(pixelWidth) x \(pixelHeight)"
+        "\(label) · framebuffer \(pixelWidth) × \(pixelHeight)"
     }
 
     var resolutionLabel: String {
-        "\(width) x \(height)"
+        "\(width) × \(height)"
     }
 
     var resolutionWithAspectLabel: String {
@@ -435,10 +505,6 @@ struct DisplayMode: Codable, Hashable, Identifiable {
         "\(Int(refreshRate.rounded()))Hz"
     }
 
-    var menuLabel: String {
-        "\(resolutionWithAspectLabel) @ \(refreshRateLabel)"
-    }
-
     func sharpnessLabel(nativeMode: DisplayMode?, language: AppLanguage) -> String? {
         guard isHiDPI, let nativeMode else { return nil }
         let widthScale = Double(pixelWidth) / Double(max(nativeMode.pixelWidth, 1))
@@ -452,7 +518,7 @@ struct DisplayMode: Codable, Hashable, Identifiable {
         if abs(widthScale.rounded() - widthScale) < 0.02 {
             return language.resolvedCode == "zh" ? "整数缩放" : "Integer scale"
         }
-        return language.resolvedCode == "zh" ? "可能偏软" : "May soften text"
+        return language.resolvedCode == "zh" ? "缩放渲染" : "Scaled"
     }
 
     var pixelArea: Int {

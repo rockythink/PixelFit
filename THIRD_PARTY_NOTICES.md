@@ -1,9 +1,11 @@
 # Third-party notices
 
 The project's own code is licensed under the MIT License in LICENSE.
-The notices below preserve upstream rights for adapted hardware-control code
-in the retained Git history. That code is removed from the current
-resolution-only application; these projects are not bundled dependencies.
+The notices below preserve upstream rights for adapted hardware-control code.
+Services/DDCService.swift adapts MonitorControl's Apple Silicon DDC approach, and
+Services/DimmingService.swift follows its gamma / shade software dimming;
+earlier adaptations remain in the retained Git history. These projects are not
+bundled dependencies.
 References to API signatures or binary formats alone do not imply that an
 upstream implementation is included. Current references are documented in
 [Display Resolution API References](docs/display-protocol-references.md).

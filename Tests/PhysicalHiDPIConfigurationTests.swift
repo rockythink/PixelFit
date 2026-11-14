@@ -37,6 +37,16 @@ struct PhysicalHiDPIConfigurationTests {
         #expect(fields["scale-resolutions"] as? [Data] == [Data([0, 0, 12, 128, 0, 0, 7, 208])])
     }
 
+    @Test func errorsFollowInAppLanguageWhenShown() {
+        defer { L10n.current = .system }
+        let error = LocalizedServiceError(key: "physical.error.fieldConflict", arguments: ["DisplayVendorID"],
+                                          detail: "raw stderr")
+        L10n.current = .en
+        #expect(error.localizedDescription == "The override file's DisplayVendorID has the wrong type or conflicts with the display.\nraw stderr")
+        L10n.current = .zhHans
+        #expect(error.localizedDescription == "覆盖文件的 DisplayVendorID 类型错误或与显示器冲突。\nraw stderr")
+    }
+
     @Test func rejectsMalformedOrAmbiguousPlists() throws {
         let invalid: [Any] = [[], [["DisplayVendorID": 1], ["DisplayVendorID": 1]],
                               ["DisplayVendorID": "4660"], ["DisplayVendorID": true],

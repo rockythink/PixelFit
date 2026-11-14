@@ -35,11 +35,6 @@ final class VirtualHiDPIService {
         let refreshRate: Double?
     }
 
-    private struct ServiceError: LocalizedError {
-        let message: String
-        var errorDescription: String? { message }
-    }
-
     private var process: Process?
     private var input: FileHandle?
     private var output: FileHandle?
@@ -54,13 +49,13 @@ final class VirtualHiDPIService {
         guard display.isOnline, !display.isBuiltin, abs(display.rotation) < 0.01,
               CGDisplayIsOnline(display.id) != 0, CGDisplayIsBuiltin(display.id) == 0,
               CGDisplayIsInMirrorSet(display.id) == 0, abs(CGDisplayRotation(display.id)) < 0.01 else {
-            throw ServiceError(message: "Virtual HiDPI requires an online, external, unrotated display outside any mirror set.")
+            throw LocalizedServiceError(key: "virtual.error.unsupportedDisplay")
         }
         guard target.width > 0, target.height > 0, target.width <= 4096, target.height <= 4096 else {
-            throw ServiceError(message: "The requested virtual HiDPI dimensions are unsupported.")
+            throw LocalizedServiceError(key: "virtual.error.dimensions")
         }
         guard let previous = CGDisplayCopyDisplayMode(display.id), let originalMode = display.currentMode else {
-            throw ServiceError(message: "Could not capture the previous physical display mode.")
+            throw LocalizedServiceError(key: "virtual.error.captureMode")
         }
         let helperURL = try locateHelper()
         let saved = Snapshot(displayID: display.id, modeID: UInt32(bitPattern: previous.ioDisplayModeID),
@@ -69,7 +64,7 @@ final class VirtualHiDPIService {
         let nativeRate = display.nativeMode?.refreshRate ?? currentRate
         let refreshRate = currentRate >= 24 ? currentRate : nativeRate
         guard refreshRate.isFinite, refreshRate >= 24, refreshRate <= 240 else {
-            throw ServiceError(message: "Could not determine a supported physical display refresh rate.")
+            throw LocalizedServiceError(key: "virtual.error.refreshRate")
         }
         let child = Process()
         let stdinPipe = Pipe()
@@ -82,7 +77,7 @@ final class VirtualHiDPIService {
         let lease = stdinPipe.fileHandleForWriting
         let reader = stdoutPipe.fileHandleForReading
         guard fcntl(reader.fileDescriptor, F_SETFL, O_NONBLOCK) != -1 else {
-            throw ServiceError(message: "Could not configure the virtual display helper output pipe.")
+            throw LocalizedServiceError(key: "virtual.error.pipe")
         }
         try child.run()
         // Parent must not retain its own copy of the child's stdin read end;
@@ -102,7 +97,7 @@ final class VirtualHiDPIService {
                 guard process === child else { throw CancellationError() }
                 for message in try drainMessages(reader) {
                     if message.event == "error" {
-                        throw ServiceError(message: message.message ?? "Virtual display helper failed.")
+                        throw LocalizedServiceError(key: "virtual.error.helper", detail: message.message)
                     }
                     guard message.event == "ready" else { continue }
                     guard message.displayID == display.id, let virtualID = message.virtualDisplayID, virtualID != 0,
@@ -110,7 +105,7 @@ final class VirtualHiDPIService {
                           message.pixelWidth == target.width * 2, message.pixelHeight == target.height * 2,
                           let actualRate = message.refreshRate, actualRate.isFinite, actualRate > 0,
                           CGDisplayMirrorsDisplay(display.id) == virtualID else {
-                        throw ServiceError(message: "The helper did not establish the exact requested 2× HiDPI mirror.")
+                        throw LocalizedServiceError(key: "virtual.error.mismatch")
                     }
                     try Task.checkCancellation()
                     session = VirtualHiDPISession(displayID: display.id, virtualDisplayID: virtualID,
@@ -118,16 +113,17 @@ final class VirtualHiDPIService {
                     return
                 }
                 guard child.isRunning else {
-                    throw ServiceError(message: "Virtual display helper exited before its ready handshake (status \(child.terminationStatus)).")
+                    throw LocalizedServiceError(key: "virtual.error.exitedEarly", arguments: [String(child.terminationStatus)])
                 }
                 try await Task.sleep(for: .milliseconds(50))
             }
-            throw ServiceError(message: "Timed out waiting for WindowServer to activate the virtual HiDPI mirror.")
+            throw LocalizedServiceError(key: "virtual.error.activationTimeout")
         } catch {
             // Never tear down a newer start that replaced this suspended task.
             if process === child {
                 do { try stop() } catch let restorationError {
-                    throw ServiceError(message: "\(error.localizedDescription) Cleanup reported: \(restorationError.localizedDescription)")
+                    throw LocalizedServiceError(key: "virtual.error.cleanup",
+                                                arguments: [error.localizedDescription, restorationError.localizedDescription])
                 }
             }
             throw error
@@ -140,7 +136,7 @@ final class VirtualHiDPIService {
     func stop() throws {
         guard let saved = snapshot else { session = nil; return }
         var needsRestore = true
-        var cleanupFailure: String?
+        var cleanupFailure: Error?
         input?.closeFile()
         input = nil
         if let child = process {
@@ -152,13 +148,15 @@ final class VirtualHiDPIService {
             var messages: [HelperMessage] = []
             if let output {
                 do { messages = try drainMessages(output) }
-                catch { cleanupFailure = error.localizedDescription }
+                catch { cleanupFailure = error }
                 output.closeFile()
             }
             needsRestore = !exited || child.terminationStatus != 0 || !messages.contains(where: { $0.event == "stopped" })
-            if cleanupFailure == nil { cleanupFailure = messages.last(where: { $0.event == "error" })?.message }
+            if cleanupFailure == nil, let message = messages.last(where: { $0.event == "error" })?.message {
+                cleanupFailure = LocalizedServiceError(key: "virtual.error.helper", detail: message)
+            }
             if cleanupFailure == nil, needsRestore, session != nil {
-                cleanupFailure = exited ? "Virtual display helper exited unexpectedly." : "Virtual display helper timed out during shutdown."
+                cleanupFailure = LocalizedServiceError(key: exited ? "virtual.error.exitedUnexpectedly" : "virtual.error.shutdownTimeout")
             }
         }
         process = nil
@@ -169,7 +167,7 @@ final class VirtualHiDPIService {
         if needsRestore { try restore(saved) }
         session = nil
         snapshot = nil
-        if let cleanupFailure { throw ServiceError(message: cleanupFailure) }
+        if let cleanupFailure { throw cleanupFailure }
     }
 
     private func locateHelper() throws -> URL {
@@ -184,7 +182,7 @@ final class VirtualHiDPIService {
         if let result = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) {
             return result
         }
-        throw ServiceError(message: "Missing \(name). Build both SwiftPM executable products or reinstall the complete app bundle.")
+        throw LocalizedServiceError(key: "virtual.error.missingHelper", arguments: [name])
     }
 
     private func drainMessages(_ reader: FileHandle) throws -> [HelperMessage] {
@@ -195,7 +193,7 @@ final class VirtualHiDPIService {
             if count > 0 { received.append(contentsOf: readBuffer.prefix(count)); continue }
             if count == 0 || errno == EAGAIN || errno == EWOULDBLOCK { break }
             if errno == EINTR { continue }
-            throw ServiceError(message: "Could not read the virtual display helper handshake (errno \(errno)).")
+            throw LocalizedServiceError(key: "virtual.error.read", arguments: [String(errno)])
         }
         var messages: [HelperMessage] = []
         while let newline = received.firstIndex(of: 10) {
@@ -224,7 +222,7 @@ final class VirtualHiDPIService {
         child.standardError = FileHandle.standardError
         let reader = pipe.fileHandleForReading
         guard fcntl(reader.fileDescriptor, F_SETFL, O_NONBLOCK) != -1 else {
-            throw ServiceError(message: "Could not configure the restoration helper pipe.")
+            throw LocalizedServiceError(key: "virtual.error.pipe")
         }
         try child.run()
         pipe.fileHandleForWriting.closeFile()
@@ -232,11 +230,12 @@ final class VirtualHiDPIService {
         guard waitForExit(child, seconds: 1.5) else {
             kill(child.processIdentifier, SIGKILL)
             _ = waitForExit(child, seconds: 0.25)
-            throw ServiceError(message: "WindowServer timed out restoring the previous physical display mode and position.")
+            throw LocalizedServiceError(key: "virtual.error.restoreTimeout")
         }
         let messages = try drainMessages(reader)
         guard child.terminationStatus == 0, messages.contains(where: { $0.event == "stopped" }) else {
-            throw ServiceError(message: messages.last(where: { $0.event == "error" })?.message ?? "The targeted display restoration helper failed.")
+            throw LocalizedServiceError(key: "virtual.error.restoreFailed",
+                                        detail: messages.last(where: { $0.event == "error" })?.message)
         }
     }
 }

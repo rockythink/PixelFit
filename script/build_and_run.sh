@@ -3,8 +3,8 @@ set -euo pipefail
 
 MODE="${1:-run}"
 APP_NAME="PixelFit"
-APP_VERSION="0.2.0"
-APP_BUILD="2"
+APP_VERSION="0.3.0"
+APP_BUILD="3"
 BUNDLE_ID="cc.ss-data.hidpibuddy"
 MIN_SYSTEM_VERSION="14.0"
 HELPER_NAME="PixelFitVirtualDisplayHelper"

@@ -24,5 +24,5 @@ hardware information.
 ## Outside Scope
 
 - EDID overrides, privileged drivers and SIP changes.
-- Brightness, volume, contrast, input source, power and DDC control.
+- Input source, power, color temperature and Night Shift.
 - Persisted virtual sessions or automatic recreation after launch.

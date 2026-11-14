@@ -51,7 +51,7 @@ struct PhysicalHiDPIService {
             }
             return PhysicalHiDPIStatus(phase: .conflict, target: receipt.target,
                                       nativeResolution: receipt.nativeResolution,
-                                      problem: "本产品覆盖文件已被其他程序更改，拒绝覆盖或恢复。")
+                                      problem: L10n.t("physical.error.conflictModified"))
         } catch {
             return PhysicalHiDPIStatus(phase: .conflict, problem: error.localizedDescription)
         }
@@ -59,12 +59,12 @@ struct PhysicalHiDPIService {
 
     func prepare(for display: DisplayDevice, target: DisplayResolutionTarget) throws -> PhysicalHiDPIPlan {
         guard !display.isBuiltin, let nativeMode = display.nativeMode else {
-            throw PhysicalHiDPIError(message: "仅支持具有已知原生分辨率的外接物理显示器。")
+            throw LocalizedServiceError(key: "physical.error.externalOnly")
         }
         let key = DisplayOverrideKey(display: display)
         let currentStatus = try status(for: key)
         guard currentStatus.phase == .notInstalled || currentStatus.phase == .restored else {
-            throw PhysicalHiDPIError(message: currentStatus.problem ?? "请先恢复现有自定义配置，再安装新的配置。")
+            throw LocalizedServiceError(key: "physical.error.restoreFirst", detail: currentStatus.problem)
         }
         let native = DisplayResolutionTarget(width: nativeMode.pixelWidth, height: nativeMode.pixelHeight)
         let original = try safeData(at: productURL(key))
@@ -82,7 +82,7 @@ struct PhysicalHiDPIService {
         let validatedData = try PhysicalHiDPIConfiguration.generate(existing: plan.generatedData, key: plan.key,
                                                                     target: plan.target, native: plan.nativeResolution)
         guard validatedData == plan.generatedData, plan.generatedData != plan.expectedInstalledData else {
-            throw PhysicalHiDPIError(message: "配置计划缺少目标模式、格式不一致，或与原配置相同。")
+            throw LocalizedServiceError(key: "physical.error.invalidPlan")
         }
         let receipt = Receipt(version: 1, key: plan.key, target: plan.target,
                               nativeResolution: plan.nativeResolution, originalData: plan.expectedInstalledData,
@@ -101,7 +101,7 @@ struct PhysicalHiDPIService {
               receipt.originalDigest == Self.digest(receipt.originalData),
               receipt.installedDigest.count == 64,
               receipt.installedDigest.allSatisfy({ $0.isHexDigit && !$0.isUppercase }) else {
-            throw PhysicalHiDPIError(message: "备份收据损坏或与本产品不匹配。")
+            throw LocalizedServiceError(key: "physical.error.invalidReceipt")
         }
         try PhysicalHiDPIConfiguration.validate(target: receipt.target, native: receipt.nativeResolution)
     }
@@ -122,14 +122,14 @@ struct PhysicalHiDPIService {
         let path = url.path
         let boundary = paths.boundary.path
         guard boundary == "/" || path.hasPrefix(boundary + "/") else {
-            throw PhysicalHiDPIError(message: "路径不在安全边界内。")
+            throw LocalizedServiceError(key: "physical.error.outsideBoundary")
         }
         var components = [String]()
         var cursor = url
         while cursor.path != boundary {
             components.append(cursor.path)
             let parent = cursor.deletingLastPathComponent()
-            guard parent.path != cursor.path else { throw PhysicalHiDPIError(message: "无效安全边界。") }
+            guard parent.path != cursor.path else { throw LocalizedServiceError(key: "physical.error.invalidBoundary") }
             cursor = parent
         }
         components.append(boundary)
@@ -137,24 +137,24 @@ struct PhysicalHiDPIService {
             var info = stat()
             if lstat(component, &info) != 0 {
                 if errno == ENOENT { return nil }
-                throw PhysicalHiDPIError(message: "无法读取安全路径：\(component)")
+                throw LocalizedServiceError(key: "physical.error.unreadablePath", arguments: [component])
             }
             let isFile = component == path
             guard info.st_uid == paths.owner, info.st_mode & 0o022 == 0,
                   info.st_mode & S_IFMT == (isFile ? S_IFREG : S_IFDIR),
                   !isFile || info.st_nlink == 1 else {
-                throw PhysicalHiDPIError(message: "拒绝不安全路径（所有者、写权限、链接或文件类型）：\(component)")
+                throw LocalizedServiceError(key: "physical.error.unsafePath", arguments: [component])
             }
             try Self.checkACL(component)
         }
         let descriptor = open(path, O_RDONLY | O_NOFOLLOW)
-        guard descriptor >= 0 else { throw PhysicalHiDPIError(message: "无法安全打开覆盖文件。") }
+        guard descriptor >= 0 else { throw LocalizedServiceError(key: "physical.error.openOverride") }
         defer { close(descriptor) }
         var info = stat()
         guard fstat(descriptor, &info) == 0, info.st_uid == paths.owner,
               info.st_mode & S_IFMT == S_IFREG, info.st_nlink == 1, info.st_mode & 0o022 == 0,
               info.st_size <= 16 * 1024 * 1024 else {
-            throw PhysicalHiDPIError(message: "覆盖文件不安全或超过 16MB。")
+            throw LocalizedServiceError(key: "physical.error.unsafeOverride")
         }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: false)
         return try handle.readToEnd() ?? Data()
@@ -163,22 +163,22 @@ struct PhysicalHiDPIService {
     private static func checkACL(_ path: String) throws {
         guard let acl = acl_get_file(path, ACL_TYPE_EXTENDED) else {
             if errno == ENOENT { return } // macOS reports no extended ACL as ENOENT.
-            throw PhysicalHiDPIError(message: "无法检查路径 ACL：\(path)")
+            throw LocalizedServiceError(key: "physical.error.aclCheck", arguments: [path])
         }
         defer { acl_free(UnsafeMutableRawPointer(acl)) }
         guard let text = acl_to_text(acl, nil) else {
-            throw PhysicalHiDPIError(message: "无法读取路径 ACL：\(path)")
+            throw LocalizedServiceError(key: "physical.error.aclRead", arguments: [path])
         }
         defer { acl_free(text) }
         // Standard /Library everyone-deny-delete ACL is safe; fail closed on grants.
         if String(cString: text).components(separatedBy: .newlines).contains(where: { $0.contains("allow") }) {
-            throw PhysicalHiDPIError(message: "拒绝包含权限授予的路径 ACL：\(path)")
+            throw LocalizedServiceError(key: "physical.error.aclGrant", arguments: [path])
         }
     }
 
     private func transact(operation: String, key: DisplayOverrideKey, payload: Data, receipt: Data) async throws {
         guard FileManager.default.isExecutableFile(atPath: "/usr/bin/ruby") else {
-            throw PhysicalHiDPIError(message: "缺少可执行的系统 /usr/bin/ruby，无法安全安装或恢复配置；尚未请求管理员授权。不会使用 Homebrew、PATH 查找或自动安装替代运行时。")
+            throw LocalizedServiceError(key: "physical.error.missingRuby")
         }
         let input: [String: Any] = ["operation": operation, "overrides": paths.overrides.path,
                                   "state": paths.state.path, "boundary": paths.boundary.path,
@@ -230,8 +230,13 @@ struct PhysicalHiDPIService {
                     process.waitUntilExit()
                     group.wait()
                     guard process.terminationStatus == 0 else {
-                        throw PhysicalHiDPIError(message: String(data: errorBytes.data, encoding: .utf8)
-                                                ?? "物理显示器配置事务失败。")
+                        let output = String(data: errorBytes.data, encoding: .utf8)?
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        // osascript reports a dismissed authorization dialog as AppleScript error -128.
+                        if output?.contains("(-128)") == true {
+                            throw LocalizedServiceError(key: "physical.error.authorizationCanceled")
+                        }
+                        throw LocalizedServiceError(key: "physical.error.transaction", detail: output)
                     }
                     continuation.resume()
                 } catch { continuation.resume(throwing: error) }

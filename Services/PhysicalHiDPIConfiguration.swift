@@ -1,11 +1,6 @@
 import CoreFoundation
 import Foundation
 
-struct PhysicalHiDPIError: LocalizedError {
-    let message: String
-    var errorDescription: String? { message }
-}
-
 /// Producing these bytes only requests a mode; it does not prove macOS exposes it.
 enum PhysicalHiDPIConfiguration {
     static func validate(target: DisplayResolutionTarget, native: DisplayResolutionTarget) throws {
@@ -16,7 +11,7 @@ enum PhysicalHiDPIConfiguration {
               target.width * 2 * target.height * 2 <= 67_108_864,
               native.width * native.height <= 67_108_864,
               target.width * native.height == target.height * native.width else {
-            throw PhysicalHiDPIError(message: "分辨率必须为正值、保持原生比例，且渲染尺寸不能超过 16384 边长或 64MP。")
+            throw LocalizedServiceError(key: "physical.error.invalidResolution")
         }
     }
 
@@ -24,13 +19,13 @@ enum PhysicalHiDPIConfiguration {
                          target: DisplayResolutionTarget, native: DisplayResolutionTarget) throws -> Data {
         try validate(target: target, native: native)
         guard key.vendorID > 0, key.productID > 0 else {
-            throw PhysicalHiDPIError(message: "显示器缺少有效的 VID/PID。")
+            throw LocalizedServiceError(key: "physical.error.missingIDs")
         }
         var dictionary: [String: Any] = [:]
         if let existing {
             let plist = try PropertyListSerialization.propertyList(from: existing, options: [], format: nil)
             guard let fields = plist as? [String: Any] else {
-                throw PhysicalHiDPIError(message: "覆盖文件必须是单个字典；数组匹配配置不能安全合并。")
+                throw LocalizedServiceError(key: "physical.error.arrayOverride")
             }
             dictionary = fields
         }
@@ -39,7 +34,7 @@ enum PhysicalHiDPIConfiguration {
                 guard let number = value as? NSNumber,
                       CFGetTypeID(number) != CFBooleanGetTypeID(),
                       number.doubleValue == Double(expected) else {
-                    throw PhysicalHiDPIError(message: "覆盖文件的 \(field) 类型错误或与显示器冲突。")
+                    throw LocalizedServiceError(key: "physical.error.fieldConflict", arguments: [field])
                 }
             } else {
                 dictionary[field] = NSNumber(value: expected)
@@ -48,7 +43,7 @@ enum PhysicalHiDPIConfiguration {
         var entries: [Data] = []
         if let value = dictionary["scale-resolutions"] {
             guard let dataEntries = value as? [Data] else {
-                throw PhysicalHiDPIError(message: "scale-resolutions 必须为 Data 数组；不会丢弃未知条目。")
+                throw LocalizedServiceError(key: "physical.error.scaleResolutions")
             }
             entries = dataEntries
         }
@@ -56,13 +51,13 @@ enum PhysicalHiDPIConfiguration {
             guard let number = value as? NSNumber,
                   CFGetTypeID(number) != CFBooleanGetTypeID(),
                   number.doubleValue.isFinite, number.doubleValue > 0 else {
-                throw PhysicalHiDPIError(message: "target-default-ppmm 字段无效。")
+                throw LocalizedServiceError(key: "physical.error.ppmm")
             }
         }
         let nativeBytes = pixelDimensions(width: native.width, height: native.height)
         if let existingDimensions = dictionary["DisplayPixelDimensions"] {
             guard let data = existingDimensions as? Data, data == nativeBytes else {
-                throw PhysicalHiDPIError(message: "原配置的面板像素尺寸与目标不符，拒绝覆盖。")
+                throw LocalizedServiceError(key: "physical.error.panelMismatch")
             }
         } else {
             dictionary["DisplayPixelDimensions"] = nativeBytes

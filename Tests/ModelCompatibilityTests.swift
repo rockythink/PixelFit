@@ -299,6 +299,26 @@ struct ModelCompatibilityTests {
         #expect(first[1].name == reconnected[0].name)
     }
 
+    @Test func refreshChoicesKeepCurrentSizeAndBackingOnePerRate() {
+        let hi120 = makeMode(1600, 1000, hiDPI: true, refreshRate: 120)
+        var hi60 = makeMode(1600, 1000, hiDPI: true, refreshRate: 60)
+        hi60.modeID = 2
+        var hi60Duplicate = hi60
+        hi60Duplicate.modeID = 3
+        hi60Duplicate.refreshRate = 59.94
+        var otherBacking = makeMode(1600, 1000, hiDPI: true, refreshRate: 100)
+        otherBacking.pixelWidth = 2560
+        otherBacking.pixelHeight = 1600
+        var display = makeDisplay(native: makeMode(2560, 1600, refreshRate: 120),
+                                  modes: [hi120, hi60, hi60Duplicate, otherBacking, makeMode(1600, 1000, refreshRate: 75),
+                                          makeMode(1280, 800, hiDPI: true, refreshRate: 90)])
+        display.currentMode = hi120
+        #expect(display.currentHiDPIRefreshModes.map { Int($0.refreshRate.rounded()) } == [120, 60])
+
+        display.currentMode = makeMode(2560, 1600, refreshRate: 120)
+        #expect(display.currentHiDPIRefreshModes.isEmpty)
+    }
+
     @Test func duplicateHardwareIdentifiersStillProduceDistinctNames() {
         let first = makeDisplay(native: makeMode(2560, 1440))
         var second = first
@@ -322,5 +342,15 @@ struct ModelCompatibilityTests {
                                                 colorSpaceName: nil, isMain: true, isActive: true),
                       isBuiltin: false, isOnline: true, frame: CGRectCodable(.zero),
                       currentMode: native, availableModes: [native] + modes, rotation: 0)
+    }
+}
+
+struct BrightnessPersistenceTests {
+    @Test func migratesLegacySoftwareDimming() throws {
+        let json = #"{"language":"system","presets":[],"showsDockIcon":true,"softwareDimming":{"19149-10048-0":0.875}}"#
+        let snapshot = try JSONDecoder().decode(PersistentSnapshot.self, from: Data(json.utf8))
+        #expect(snapshot.brightness["19149-10048-0"] == DisplayBrightnessSetting(mode: .software, softwareLevel: 0.875))
+        let encoded = String(decoding: try JSONEncoder().encode(snapshot), as: UTF8.self)
+        #expect(!encoded.contains("softwareDimming"))
     }
 }

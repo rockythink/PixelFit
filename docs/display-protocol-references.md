@@ -1,8 +1,9 @@
 # Display Resolution API References
 
-PixelFit manages resolution only. Hardware controls, DDC probing, shading,
-Night Shift, keyboard interception, display synchronization and scheduling are
-not part of the application.
+PixelFit manages resolution and, on Apple Silicon, external monitor brightness,
+contrast and volume over DDC/CI, plus software dimming (gamma or overlay) for
+displays without usable DDC brightness. Shading, Night Shift, input source, power,
+display synchronization and scheduling are not part of the application.
 
 ## References
 
@@ -29,7 +30,7 @@ not part of the application.
 - Crisp: https://github.com/didriksg/Crisp/tree/a268173fa44b0b6d84fc9dafb20758097b60d07b
   - CGS mode-description ABI reference. Field offsets are protocol facts; this project implements its own byte decoding and mode selection.
   - The 8-byte physical-format candidate in PR 86 was inspected at https://github.com/dboleslawski/Crisp/tree/df02f3ddab0c6af5172af1ca5a98d9893a7d2a9e and independently validated on Sculptor.
-- Historical Apple Silicon DDC implementation: see [third-party notices](../THIRD_PARTY_NOTICES.md). Hardware-control code has been removed from the current application; its historical license obligations remain.
+- Apple Silicon DDC/CI (`Services/DDCService.swift`): registry pairing of external framebuffers with the following `DCPAVServiceProxy`, EDID UUID match fields and packet framing follow MonitorControl's `Arm64DDC`; see [third-party notices](../THIRD_PARTY_NOTICES.md). Checksums include the 0x51 source address per the DDC/CI spec.
 ## Native Mode Path
 
 - Enumerate CGS private mode descriptions first, with public CoreGraphics modes

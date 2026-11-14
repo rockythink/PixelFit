@@ -2,29 +2,48 @@
 
 <img src="Resources/AppIcon.iconset/icon_128x128.png" alt="PixelFit 图标" width="96" height="96">
 
-**让 macOS 外接屏选择合适的 HiDPI 分辨率。** PixelFit 是一个原生菜单栏工具：优先使用系统实际提供的模式，缺少档位时由你明确授权添加缩放配置，不自动启用虚拟镜像。
+**让 macOS 外接屏选择合适的 HiDPI 分辨率，并直接调节显示器亮度、对比度和音量。** PixelFit 是一个原生菜单栏工具：分辨率优先使用系统实际提供的模式，缺少档位时由你明确授权添加缩放配置，不自动启用虚拟镜像；显示器硬件设置通过 DDC/CI 调节。
 
-PixelFit is a resolution-only macOS utility for choosing HiDPI modes. Native modes come first; physical scaling configuration requires explicit authorization, and virtual mirroring is an optional experiment. The release binary targets Apple Silicon on macOS 14 or later.
+PixelFit is a macOS utility for choosing HiDPI modes and adjusting external monitor brightness, contrast and volume over DDC/CI. Native modes come first; physical scaling configuration requires explicit authorization, and virtual mirroring is an optional experiment. The release binary targets Apple Silicon on macOS 14 or later.
 
 [下载与发行说明](https://github.com/rockythink/PixelFit/releases) · [兼容性记录](docs/compatibility-matrix.md) · [API 与实现参考](docs/display-protocol-references.md) · [反馈问题](https://github.com/rockythink/PixelFit/issues)
 
 ## 下载与安装
 
-1. 打开 [v0.2.0 发行页](https://github.com/rockythink/PixelFit/releases/tag/v0.2.0)，下载该页实际发布的 `PixelFit-v0.2.0-macos-arm64.zip`，不要选择 GitHub 自动生成的源码 ZIP。
+1. 打开 [v0.3.0 发行页](https://github.com/rockythink/PixelFit/releases/tag/v0.3.0)，下载该页实际发布的 `PixelFit-v0.3.0-macos-arm64.zip`，不要选择 GitHub 自动生成的源码 ZIP。
 2. 解压，将 `PixelFit.app` 拖入「应用程序」。需要 **macOS 14 或更新版本、Apple Silicon（arm64）**；当前不提供已验证的 Intel 安装包。
 3. 若使用过旧版 HiDPIBuddy / PixelFit，先正常退出旧版本，再打开新 App。通过菜单栏图标或主窗口选择屏幕。
 
-v0.2.0 的发行附件已使用 Developer ID Application 签名，通过 Apple 公证，并在 App 中附加公证票据；本地 Gatekeeper 验证为 `accepted / Notarized Developer ID`。发行页同时提供 `SHA256SUMS.txt`。源码 ZIP 和自行构建的 App 不等于已公证发行包；若 macOS 阻止打开，请先核对来源、校验值与发行说明，不要关闭 Gatekeeper 或 SIP。
+v0.3.0 的发行附件已使用 Developer ID Application 签名，通过 Apple 公证，并在 App 中附加公证票据；本地 Gatekeeper 验证为 `accepted / Notarized Developer ID`。发行页同时提供 `SHA256SUMS.txt`。源码 ZIP 和自行构建的 App 不等于已公证发行包；若 macOS 阻止打开，请先核对来源、校验值与发行说明，不要关闭 Gatekeeper 或 SIP。
 
 ## 日常使用
 
 1. 在屏幕示意图或屏幕列表中选择目标屏幕；示意图显示桌面相对位置，点击只选择屏幕，不改变排列。
-2. 在「HiDPI 分辨率」选择尺寸。推荐遵循屏幕物理比例，同一尺寸不会因刷新率重复出现。
-3. 检查画面是否铺满、文字比例及刷新率；**15 秒内点击「保留分辨率」**。未确认会自动恢复之前模式，也可手动恢复。
+2. 在「HiDPI 分辨率」选择尺寸。推荐遵循屏幕物理比例，同一尺寸不会因刷新率重复出现；每项标注像素匹配、整数缩放或缩放渲染。当前尺寸支持多个刷新率时，可在「刷新率」中切换。
+3. 检查画面是否铺满、文字比例及刷新率；目标屏幕上会弹出确认面板，**15 秒内点击「保留分辨率」或按 Return**。未确认会自动恢复之前模式，也可点「恢复原设置」或按 Esc 立即恢复。
 
-支持保存、应用和删除物理显示器的分辨率 / 刷新率预设，提供中英文界面与系统显示设置入口。重复打开同一包标识的 App 会激活最早启动的实例并退出新实例，避免重复菜单栏图标；只读 CLI 不受此限制。
+主窗口工具栏的「分辨率预设」可保存、应用和删除物理显示器的分辨率 / 刷新率预设，菜单栏可直接应用；预设按屏幕的 Vendor/Product ID 与序列号匹配，重新连接后仍可使用。「设置」（⌘,）中可切换中英文界面、登录时启动和是否在 Dock 中显示图标。重复打开同一包标识的 App 会激活最早启动的实例并退出新实例，避免重复菜单栏图标；只读 CLI 不受此限制。
 
-**只管理分辨率。** 不探测或读写 DDC，不提供亮度、音量、对比度、输入源、电源、色温、Night Shift、同步或定时任务。
+### 显示器控制（DDC/CI）
+
+菜单栏卡片提供亮度和音量滑块，主窗口「显示器控制」另有对比度和「亮度调节」方式。打开菜单栏面板时会重新读取，以同步你在显示器按键上做的改动。
+
+亮度有三种调节方式，每块屏单独设置：
+
+| 方式 | 做法 | 适用 |
+| --- | --- | --- |
+| 硬件 DDC | 通过 DDC/CI 调显示器背光 | 只想动背光 |
+| 硬件 + 软件（DDC 屏的自动默认） | 上半段调背光；背光到最低后，下半段用软件继续压暗 | 想比显示器自身最低亮度更暗 |
+| 仅软件（无 DDC 屏的自动默认） | 缩放 gamma 让画面变暗，最低保留 15% | 不支持或只记录、不执行 DDC 亮度的显示器 |
+
+- 如果拖动亮度时画面不变，说明这台显示器只记录、不执行 DDC 亮度，请改为「仅软件」。
+- 软件调光在系统重置色彩（切换分辨率、唤醒、其他调色程序退出）后会自动恢复；若其他程序（如 f.lux）持续改写屏幕色彩，该屏会自动改用不影响截图的遮罩方式。退出 PixelFit 时恢复原始色彩。
+- DDC 仅支持 Apple Silicon。显示器需在自身菜单中开启 DDC/CI；部分 Mac 内建 HDMI 接口、转接器和扩展坞不转发 DDC。
+- 只显示显示器实际回复的项目；没有扬声器的显示器也可能回复音量。
+- MonitorControl、BetterDisplay、Lunar 运行时会提示先退出：它们同样拦截媒体键并读写 DDC，会互相干扰。
+- 键盘亮度键调节鼠标所在的外接屏，音量 / 静音键仅在声音从该显示器（DP / HDMI 音频）输出时接管，按住 ⌥⇧ 微调；调节时在该屏右上角显示提示。其他情况按键仍交给系统。需在「设置」中开启（默认开启），并在「系统设置 > 隐私与安全性 > 辅助功能」中允许 PixelFit；可随时在设置中关闭。
+- MacBook 内建屏和 Apple 显示器使用系统原生亮度：界面滑块可调，亮度键仍交给系统处理。
+- 暂不提供输入源、电源、色温、Night Shift、同步或定时任务。
 
 ### 缺少目标模式：启用更多 HiDPI
 
@@ -54,7 +73,7 @@ v0.2.0 的发行附件已使用 Developer ID Application 签名，通过 Apple �
 **删除 App 不会自动撤销已安装的系统缩放配置。** 若曾启用「更多 HiDPI」，卸载前请：
 
 1. 结束虚拟镜像，并切换到屏幕原先支持的模式，确认画面正常。
-2. 在 App 中点击「恢复原配置」，核对目标并完成管理员授权。它会精确恢复安装前文件；原先不存在文件时，只移除本次安装的产品文件，不删除厂商目录或其他产品。
+2. 在主窗口选中该屏幕，展开「高级详情」，点击「恢复原配置」，核对目标并完成管理员授权。它会精确恢复安装前文件；原先不存在文件时，只移除本次安装的产品文件，不删除厂商目录或其他产品。
 3. 按需关开屏幕电源、重新连接或重启，再刷新并确认恢复。macOS 可能缓存模式，恢复配置不会立即改变当前分辨率。
 4. 正常退出 App 后，再删除「应用程序」中的 `PixelFit.app`。
 
@@ -74,7 +93,7 @@ swift test
 open dist/PixelFit.app
 ```
 
-`--build` 只构建，不关闭或启动现有 App；产物为 `dist/PixelFit.app`，包含独立的虚拟显示器辅助程序。普通源码构建不写入系统显示配置，也不代表完成 Apple 公证。现有 **36 项常规测试**及已记录的硬件验收范围见 [兼容性记录](docs/compatibility-matrix.md)。
+`--build` 只构建，不关闭或启动现有 App；产物为 `dist/PixelFit.app`，包含独立的虚拟显示器辅助程序。普通源码构建不写入系统显示配置，也不代表完成 Apple 公证。现有 **56 项常规测试**及已记录的硬件验收范围见 [兼容性记录](docs/compatibility-matrix.md)。
 
 ### 构建发布版
 
@@ -94,7 +113,7 @@ swift run PixelFit diagnose --all --json
 
 CLI 仅提供 `help`、`list`、`status`、`get` 和 `diagnose`；模式切换与管理员配置操作在 App 中进行。
 
-图标源文件为 `Resources/AppIcon.svg`；普通构建使用已提交的 PNG / ICNS。仅修改图标并重新生成资源时，需要 `rsvg-convert`（`brew install librsvg`），再运行 `./script/generate_icon.sh`；打包使用 macOS 的 `iconutil`。
+图标原画为 `Resources/AppIcon-artwork.png`（满幅方形）；普通构建使用已提交的 PNG / ICNS。修改原画后运行 `./script/generate_icon.sh`，由 `script/compose_icon.swift` 套用 macOS 圆角与投影，再用系统自带的 `sips` 与 `iconutil` 生成各尺寸，无需额外依赖。
 
 ## 兼容性与反馈
 

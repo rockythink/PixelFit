@@ -50,18 +50,18 @@ enum CGSDisplayModeAPI {
         var config: CGDisplayConfigRef?
         let begin = CGBeginDisplayConfiguration(&config)
         guard begin == .success, let config else {
-            throw MonitorControlError.unsupported(L10n.t("error.configBegin", .system))
+            throw MonitorControlError.unsupported(L10n.t("error.configBegin"))
         }
 
         let configure = CGSConfigureDisplayMode(config, displayID, modeNumber)
         guard configure == .success else {
             CGCancelDisplayConfiguration(config)
-            throw MonitorControlError.unsupported(L10n.t("error.configMode", .system))
+            throw MonitorControlError.unsupported(L10n.t("error.configMode"))
         }
 
         let complete = CGCompleteDisplayConfiguration(config, persist ? .permanently : .forSession)
         guard complete == .success else {
-            throw MonitorControlError.unsupported(L10n.t("error.configApply", .system))
+            throw MonitorControlError.unsupported(L10n.t("error.configApply"))
         }
     }
 }

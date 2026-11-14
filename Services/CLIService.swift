@@ -23,7 +23,7 @@ enum CLIService {
             PixelFit status
             PixelFit get [--index N] [--json]
             PixelFit diagnose [--index N|--all] [--json]
-            Resolution diagnostics only. Use the app for protected mode changes and physical HiDPI configuration.
+            Read-only diagnostics; diagnose also reads DDC/CI values. Use the app to change modes or monitor settings.
             """)
             return
         }
@@ -68,8 +68,16 @@ enum CLIService {
             }
             targets = [displays[index - 1]]
         }
+        // DDC reads are I2C traffic to the monitor, so only diagnose performs them.
+        let hardware = command == "diagnose" ? DDCService().readAllSync(targets) : [:]
         if json {
-            let reports = targets.map { DisplayReport($0, physical: configurations[DisplayOverrideKey(display: $0)] ?? PhysicalHiDPIStatus()) }
+            let reports = targets.map {
+                var report = DisplayReport($0, physical: configurations[DisplayOverrideKey(display: $0)] ?? PhysicalHiDPIStatus())
+                if command == "diagnose", !$0.isBuiltin {
+                    report.hardwareControls = Dictionary(uniqueKeysWithValues: (hardware[$0.id] ?? [:]).map { ($0.key.rawValue, $0.value) })
+                }
+                return report
+            }
             let data = try JSONEncoder.pretty.encode(Report(displays: reports))
             FileHandle.standardOutput.write(data)
             FileHandle.standardOutput.write(Data("\n".utf8))
@@ -88,6 +96,13 @@ enum CLIService {
             if let problem = state.problem { print("  configuration problem: \(problem)") }
             if command == "diagnose" {
                 print("  frame: \(display.frame.cgRect)")
+                if !display.isBuiltin {
+                    let values = hardware[display.id] ?? [:]
+                    let text = HardwareControl.allCases.compactMap { control in
+                        values[control].map { "\(control.rawValue) \($0.current)/\($0.maximum)" }
+                    }
+                    print("  DDC/CI: \(text.isEmpty ? "no reply" : text.joined(separator: ", "))")
+                }
                 print("  mirrors: \(CGDisplayMirrorsDisplay(display.id))")
                 print("  recommended HiDPI:")
                 for mode in display.recommendedHiDPIModes { print("    \(mode.detailLabel)") }
@@ -121,6 +136,8 @@ enum CLIService {
         var virtualHiDPITargets: [DisplayResolutionTarget]
         var switchableModes: [ModeReport]
         var physicalConfiguration: PhysicalConfigurationReport
+        /// Present for external displays in `diagnose`; empty when the monitor did not answer DDC/CI.
+        var hardwareControls: [String: HardwareControlValue]?
 
         init(_ display: DisplayDevice, physical: PhysicalHiDPIStatus) {
             physicalConfiguration = PhysicalConfigurationReport(display: display, status: physical)

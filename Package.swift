@@ -18,6 +18,7 @@ let package = Package(
             exclude: [
                 "Tests",
                 "README.md",
+                "CLAUDE.md",
                 "LICENSE",
                 "THIRD_PARTY_NOTICES.md",
                 "docs",

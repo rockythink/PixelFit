@@ -15,7 +15,25 @@ struct PhysicalHiDPIControls: View {
         store.pendingVirtualSeconds != nil || store.virtualSession != nil
     }
 
+    private var showsStatus: Bool {
+        status.phase == .conflict || status.phase == .restored || (status.phase == .installed && !targetAvailable)
+    }
+    private var showsProgress: Bool {
+        store.isChangingPhysicalConfiguration && store.physicalConfigurationRequest?.display.id == display.id
+    }
+    private var showsEnable: Bool {
+        !targetAvailable && store.physicalProbeTarget(for: display.id) != nil &&
+        (status.phase == .notInstalled || status.phase == .restored)
+    }
+
     var body: some View {
+        // Render nothing when idle, so the parent stack adds no spacing for an empty block.
+        if showsStatus || status.problem != nil || showsProgress || showsEnable {
+            content
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
             if status.phase == .conflict {
                 statusText("physical.conflict", symbol: "exclamationmark.triangle")
@@ -24,35 +42,21 @@ struct PhysicalHiDPIControls: View {
             } else if status.phase == .installed && !targetAvailable {
                 statusText("physical.installed", symbol: "clock")
             }
-            if targetAvailable, let target {
-                Label(String(format: L10n.t("physical.available", store.language), target.resolutionLabel), systemImage: "checkmark.circle")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             if let problem = status.problem {
                 Label(problem, systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(.red).textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if store.isChangingPhysicalConfiguration && store.physicalConfigurationRequest?.display.id == display.id {
+            if showsProgress {
                 ProgressView(L10n.t("physical.changing", store.language)).controlSize(.small)
             }
-            if !targetAvailable, store.physicalProbeTarget(for: display.id) != nil,
-               status.phase == .notInstalled || status.phase == .restored {
+            if showsEnable {
                 Button(L10n.t("physical.enableMore", store.language)) {
                     store.requestPhysicalHiDPI(for: display.id)
                     onRequest()
                 }
                 .buttonStyle(.bordered)
                 .disabled(actionsDisabled)
-            }
-            if status.canRestore || status.phase == .conflict {
-                Button(L10n.t("physical.restore", store.language)) {
-                    store.requestRestorePhysicalHiDPI(for: display.id)
-                    onRequest()
-                }
-                .buttonStyle(.bordered)
-                .disabled(actionsDisabled || !status.canRestore || status.phase == .conflict)
             }
         }
         .controlSize(.small)
@@ -62,6 +66,41 @@ struct PhysicalHiDPIControls: View {
         Label(L10n.t(key, store.language), systemImage: symbol)
             .font(.caption).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Installed-configuration state and the administrator restore action. Rarely needed, so it
+/// lives in the main window's advanced section rather than next to the everyday mode picker.
+struct PhysicalHiDPIConfigurationDetails: View {
+    @Bindable var store: DisplayStore
+    let display: DisplayDevice
+    let onRequest: () -> Void
+
+    private var status: PhysicalHiDPIStatus { store.physicalStatus(for: display.id) }
+    private var actionsDisabled: Bool {
+        store.isChangingPhysicalConfiguration || store.physicalConfigurationRequest != nil ||
+        store.isPreparingVirtualHiDPI || store.pendingModeChange != nil ||
+        store.pendingVirtualSeconds != nil || store.virtualSession != nil
+    }
+
+    var body: some View {
+        if status.canRestore || status.phase == .conflict {
+            VStack(alignment: .leading, spacing: 8) {
+                if status.canRestore, let target = status.target {
+                    Label(String(format: L10n.t("physical.installedSummary", store.language), target.resolutionLabel), systemImage: "checkmark.circle")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button(L10n.t("physical.restore", store.language)) {
+                    store.requestRestorePhysicalHiDPI(for: display.id)
+                    onRequest()
+                }
+                .buttonStyle(.bordered)
+                .disabled(actionsDisabled || !status.canRestore || status.phase == .conflict)
+            }
+            .font(.caption)
+            .controlSize(.small)
+        }
     }
 }
 
